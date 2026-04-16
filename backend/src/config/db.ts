@@ -1,5 +1,5 @@
 import { createPool } from 'mysql2/promise';
-import env from './config.js';
+import env from './env.js';
 
 // Application user pool (least privileges)
 const pool = createPool({
