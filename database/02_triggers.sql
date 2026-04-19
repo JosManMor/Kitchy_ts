@@ -1,43 +1,48 @@
-DELIMITER //
+CREATE OR REPLACE FUNCTION handle_likes_count()
+RETURNS TRIGGER AS $$
+DECLARE
+    delta INT := 0;
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        IF NEW.liked THEN
+            delta := 1;
+        END IF;
 
--- Cuando se inserta un like en TRUE, aumenta el contador
+    ELSIF TG_OP = 'UPDATE' THEN
+        IF NOT OLD.liked AND NEW.liked THEN
+            delta := 1;
+        ELSIF OLD.liked AND NOT NEW.liked THEN
+            delta := -1;
+        END IF;
+
+    ELSIF TG_OP = 'DELETE' THEN
+        IF OLD.liked THEN
+            delta := -1;
+        END IF;
+    END IF;
+
+    -- Solo actualiza si hay cambio real
+    IF delta <> 0 THEN
+        UPDATE recipes
+        SET likes_count = GREATEST(likes_count + delta, 0)
+        WHERE id = COALESCE(NEW.recipe_id, OLD.recipe_id);
+    END IF;
+
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE TRIGGER trg_like_insert
 AFTER INSERT ON likes
 FOR EACH ROW
-BEGIN
-    IF NEW.liked = TRUE THEN
-        UPDATE recipes
-        SET likes_count = likes_count + 1
-        WHERE id = NEW.recipe_id;
-    END IF;
-END//
+EXECUTE FUNCTION handle_likes_count();
 
--- Cuando se actualiza un like (de TRUE a FALSE o viceversa)
 CREATE TRIGGER trg_like_update
 AFTER UPDATE ON likes
 FOR EACH ROW
-BEGIN
-    IF OLD.liked = FALSE AND NEW.liked = TRUE THEN
-        UPDATE recipes
-        SET likes_count = likes_count + 1
-        WHERE id = NEW.recipe_id;
-    ELSEIF OLD.liked = TRUE AND NEW.liked = FALSE THEN
-        UPDATE recipes
-        SET likes_count = likes_count - 1
-        WHERE id = NEW.recipe_id;
-    END IF;
-END//
+EXECUTE FUNCTION handle_likes_count();
 
--- Cuando se borra el registro (por ejemplo si se quiere limpiar likes nullos)
 CREATE TRIGGER trg_like_delete
 AFTER DELETE ON likes
 FOR EACH ROW
-BEGIN
-    IF OLD.liked = TRUE THEN
-        UPDATE recipes
-        SET likes_count = likes_count - 1
-        WHERE id = OLD.recipe_id;
-    END IF;
-END//
-
-DELIMITER ;
+EXECUTE FUNCTION handle_likes_count();
