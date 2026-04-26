@@ -19,6 +19,7 @@ export class AuthController {
     return this.authService.login(loginData);
   }
   @Post('register')
+  @UsePipes(new ValidationPipe())
   register(@Body() registerData: RegisterDto) {
     return this.authService.register(registerData);
   }
