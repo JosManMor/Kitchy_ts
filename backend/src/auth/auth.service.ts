@@ -3,28 +3,25 @@ import {
   UnauthorizedException,
   ConflictException,
 } from '@nestjs/common';
-import { PrismaService } from 'prisma.service';
+import { AuthRepository } from './auth.repository';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private authRepository: AuthRepository) {}
 
   async register(data: RegisterDto) {
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
     try {
-      const user = await this.prisma.user.create({
-        data: {
-          ...data,
-          password: hashedPassword,
-        },
+      const user = await this.authRepository.createUser({
+        ...data,
+        password: hashedPassword,
       });
 
-      const { password: _password, ...result } = user;
-      return result;
+      return user;
     } catch (error: unknown) {
       if (error instanceof Error && 'code' in error) {
         if (error.code === 'P2002') {
@@ -36,9 +33,7 @@ export class AuthService {
   }
 
   async login(data: LoginDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: data.email },
-    });
+    const user = await this.authRepository.findUserByEmail(data.email);
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -50,7 +45,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const { password: _password, ...result } = user;
-    return result;
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+    };
   }
 }
