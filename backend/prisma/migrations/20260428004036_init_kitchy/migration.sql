@@ -1,4 +1,7 @@
 -- CreateEnum
+CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'USER', 'CHEF');
+
+-- CreateEnum
 CREATE TYPE "RecipeReactionType" AS ENUM ('LIKE', 'BOOKMARK');
 
 -- CreateEnum
@@ -50,23 +53,12 @@ CREATE TABLE "units" (
 );
 
 -- CreateTable
-CREATE TABLE "roles" (
-    "id" SERIAL NOT NULL,
-    "name" VARCHAR(50) NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "roles_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "users" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "username" VARCHAR(100) NOT NULL,
     "email" VARCHAR(100) NOT NULL,
     "password" TEXT NOT NULL,
-    "role_id" INTEGER NOT NULL DEFAULT 2,
-    "is_verified_chef" BOOLEAN NOT NULL DEFAULT false,
+    "role" "UserRole" NOT NULL DEFAULT 'USER',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "deleted_at" TIMESTAMP(3),
@@ -146,9 +138,6 @@ CREATE UNIQUE INDEX "ingredients_name_key" ON "ingredients"("name");
 CREATE UNIQUE INDEX "units_name_key" ON "units"("name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "roles_name_key" ON "roles"("name");
-
--- CreateIndex
 CREATE UNIQUE INDEX "users_username_key" ON "users"("username");
 
 -- CreateIndex
@@ -165,9 +154,6 @@ CREATE UNIQUE INDEX "recipe_steps_recipe_id_step_number_key" ON "recipe_steps"("
 
 -- CreateIndex
 CREATE UNIQUE INDEX "user_recipe_reactions_user_id_recipe_id_type_key" ON "user_recipe_reactions"("user_id", "recipe_id", "type");
-
--- AddForeignKey
-ALTER TABLE "users" ADD CONSTRAINT "fk_user_role" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "recipes" ADD CONSTRAINT "fk_recipe_author" FOREIGN KEY ("author_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
