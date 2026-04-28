@@ -1,6 +1,6 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
   moduleFormat = "cjs"
 }
 
@@ -8,70 +8,171 @@ datasource db {
   provider = "postgresql"
 }
 
-model categories {
-  id      Int       @id @default(autoincrement())
-  name    String    @unique @db.VarChar(100)
-  recipes recipes[]
+enum RecipeReactionType {
+  LIKE
+  BOOKMARK
 }
 
-model countries {
-  id      Int       @id @default(autoincrement())
-  name    String    @unique @db.VarChar(100)
-  icon    String?
-  recipes recipes[]
+enum RecipeDifficulty {
+  EASY
+  MEDIUM
+  HARD
 }
 
-model ingredients {
-  id                 Int                  @id @default(autoincrement())
-  name               String               @unique @db.VarChar(100)
-  recipe_ingredients recipe_ingredients[]
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique @db.VarChar(100)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  recipes    Recipe[]
+
+  @@map("categories")
 }
 
-model recipe_ingredients {
-  recipe_id     Int
-  ingredient_id Int
-  unit_id       Int?
-  quantity      Decimal     @db.Decimal(10, 2)
-  ingredients   ingredients @relation(fields: [ingredient_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_ingredient")
-  recipes       recipes     @relation(fields: [recipe_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_recipe")
-  units         units?      @relation(fields: [unit_id], references: [id], onUpdate: NoAction, map: "fk_unit")
+model Country {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(100)
+  icon      String?
+  code      String?  @db.VarChar(10)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@id([recipe_id, ingredient_id])
+  recipes   Recipe[]
+
+  @@map("countries")
 }
 
-model recipes {
-  id                 Int                  @id @default(autoincrement())
-  title              String               @db.VarChar(150)
+model Ingredient {
+  id                Int                @id @default(autoincrement())
+  name              String             @unique @db.VarChar(100)
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  deletedAt         DateTime?          @map("deleted_at")
+
+  recipeIngredients RecipeIngredient[]
+
+  @@map("ingredients")
+}
+
+model Unit {
+  id                Int                @id @default(autoincrement())
+  name              String             @unique @db.VarChar(50)
+  type              String             @db.VarChar(50)
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+
+  recipeIngredients RecipeIngredient[]
+
+  @@map("units")
+}
+
+model Role {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users     User[]
+
+  @@map("roles")
+}
+
+model User {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  username       String    @unique @db.VarChar(100)
+  email          String    @unique @db.VarChar(100)
+  password       String
+  roleId         Int       @default(2) @map("role_id")
+  isVerifiedChef Boolean   @default(false) @map("is_verified_chef")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  role           Role      @relation(fields: [roleId], references: [id], onDelete: Restrict, map: "fk_user_role")
+
+  recipes        Recipe[]
+  reactions      UserRecipeReaction[]
+
+  @@map("users")
+}
+
+model Recipe {
+  id                 Int              @id @default(autoincrement())
+  authorId           String           @map("author_id") @db.Uuid
+  title              String           @db.VarChar(150)
+  slug               String           @unique @db.VarChar(180)
   description        String?
-  instructions       String?
-  image_url          String?
-  category_id        Int?
-  country_id         Int?
-  likes_count        Int?                 @default(0)
-  recipe_ingredients recipe_ingredients[]
-  categories         categories?          @relation(fields: [category_id], references: [id], onUpdate: NoAction, map: "fk_category")
-  countries          countries?           @relation(fields: [country_id], references: [id], onUpdate: NoAction, map: "fk_country")
+  imageUrl           String?          @map("image_url")
+  preparationMinutes Int              @map("preparation_minutes")
+  servings           Int
+  difficulty         RecipeDifficulty
+  categoryId         Int?             @map("category_id")
+  countryId          Int?             @map("country_id")
+
+  likesCount         Int              @default(0) @map("likes_count")
+  bookmarksCount     Int              @default(0) @map("bookmarks_count")
+  viewsCount         Int              @default(0) @map("views_count")
+
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  deletedAt          DateTime?        @map("deleted_at")
+
+  author             User             @relation(fields: [authorId], references: [id], onDelete: Restrict, map: "fk_recipe_author")
+  category           Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull, map: "fk_recipe_category")
+  country            Country?         @relation(fields: [countryId], references: [id], onDelete: SetNull, map: "fk_recipe_country")
+
+  recipeIngredients  RecipeIngredient[]
+  steps              RecipeStep[]
+  reactions          UserRecipeReaction[]
+
+  @@index([title])
+  @@map("recipes")
 }
 
-model roles {
-  id    Int     @id @default(autoincrement())
-  name  String  @unique @db.VarChar(50)
-  users users[]
+model RecipeStep {
+  id          Int      @id @default(autoincrement())
+  recipeId    Int      @map("recipe_id")
+  stepNumber  Int      @map("step_number")
+  instruction String
+  imageUrl    String?  @map("image_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  recipe      Recipe   @relation(fields: [recipeId], references: [id], onDelete: Restrict, map: "fk_recipe_step_recipe")
+
+  @@unique([recipeId, stepNumber])
+  @@map("recipe_steps")
 }
 
-model units {
-  id                 Int                  @id @default(autoincrement())
-  name               String               @unique @db.VarChar(50)
-  type               String               @db.VarChar(50)
-  recipe_ingredients recipe_ingredients[]
+model RecipeIngredient {
+  recipeId      Int      @map("recipe_id")
+  ingredientId  Int      @map("ingredient_id")
+  unitId        Int?     @map("unit_id")
+  quantity      Decimal  @db.Decimal(10, 2)
+
+  recipe        Recipe      @relation(fields: [recipeId], references: [id], onDelete: Restrict, map: "fk_recipe_ingredient_recipe")
+  ingredient    Ingredient  @relation(fields: [ingredientId], references: [id], onDelete: Restrict, map: "fk_recipe_ingredient_ingredient")
+  unit          Unit?       @relation(fields: [unitId], references: [id], onDelete: SetNull, map: "fk_recipe_ingredient_unit")
+
+  @@id([recipeId, ingredientId])
+  @@map("recipe_ingredients")
 }
 
-model users {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  username   String    @unique @db.VarChar(100)
-  email      String    @unique @db.VarChar(100)
-  password   String
-  role_id    Int       @default(2)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  roles      roles     @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_role")
+model UserRecipeReaction {
+  id         BigInt             @id @default(autoincrement())
+  userId     String             @map("user_id") @db.Uuid
+  recipeId   Int                @map("recipe_id")
+  type       RecipeReactionType
+
+  createdAt  DateTime           @default(now()) @map("created_at")
+  updatedAt  DateTime           @updatedAt @map("updated_at")
+  deletedAt  DateTime?          @map("deleted_at")
+
+  user       User               @relation(fields: [userId], references: [id], onDelete: Restrict, map: "fk_user_recipe_reaction_user")
+  recipe     Recipe             @relation(fields: [recipeId], references: [id], onDelete: Restrict, map: "fk_user_recipe_reaction_recipe")
+
+  @@unique([userId, recipeId, type])
+  @@map("user_recipe_reactions")
 }
