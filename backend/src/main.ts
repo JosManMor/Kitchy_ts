@@ -1,7 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import env from './config/env.js';
-import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
@@ -10,8 +9,6 @@ async function bootstrap() {
   app.enableCors({
     origin: env.CORS_ORIGIN,
   });
-  const httpExceptionFilter = new HttpExceptionFilter();
-  app.useGlobalFilters(httpExceptionFilter);
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
