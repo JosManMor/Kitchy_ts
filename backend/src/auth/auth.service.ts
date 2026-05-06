@@ -7,10 +7,14 @@ import { AuthRepository } from './auth.repository';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import * as bcrypt from 'bcrypt';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
-  constructor(private authRepository: AuthRepository) {}
+  constructor(
+    private authRepository: AuthRepository,
+    private jwtService: JwtService,
+  ) {}
 
   async register(data: RegisterDto) {
     const hashedPassword = await bcrypt.hash(data.password, 10);
@@ -44,12 +48,12 @@ export class AuthService {
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
-
-    return {
+    const token = await this.jwtService.signAsync({
       id: user.id,
       email: user.email,
       username: user.username,
       role: user.role,
-    };
+    });
+    return { token };
   }
 }
