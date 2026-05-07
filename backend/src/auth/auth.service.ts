@@ -1,13 +1,11 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuthRepository } from './auth.repository';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+import { CreatedUser } from './interfaces/created-user.interface';
+import { AuthPayload } from './interfaces/auth-payload.interface';
 
 @Injectable()
 export class AuthService {
@@ -16,27 +14,16 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async register(data: RegisterDto) {
+  async register(data: RegisterDto): Promise<CreatedUser | null> {
     const hashedPassword = await bcrypt.hash(data.password, 10);
-
-    try {
-      const user = await this.authRepository.createUser({
-        ...data,
-        password: hashedPassword,
-      });
-
-      return user;
-    } catch (error: unknown) {
-      if (error instanceof Error && 'code' in error) {
-        if (error.code === 'P2002') {
-          throw new ConflictException('Email or username already exists');
-        }
-        throw error;
-      }
-    }
+    const user = await this.authRepository.createUser({
+      ...data,
+      password: hashedPassword,
+    });
+    return user;
   }
 
-  async login(data: LoginDto) {
+  async login(data: LoginDto): Promise<AuthPayload> {
     const user = await this.authRepository.findUserByEmail(data.email);
 
     if (!user) {
@@ -50,10 +37,14 @@ export class AuthService {
     }
     const token = await this.jwtService.signAsync({
       id: user.id,
-      email: user.email,
-      username: user.username,
-      role: user.role,
     });
-    return { token };
+    return {
+      token: token,
+      user: {
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      },
+    };
   }
 }
