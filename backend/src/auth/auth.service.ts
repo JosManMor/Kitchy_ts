@@ -1,5 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { AuthRepository } from './auth.repository';
+import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import * as bcrypt from 'bcrypt';
@@ -10,21 +10,20 @@ import { AuthPayload } from './interfaces/auth-payload.interface';
 @Injectable()
 export class AuthService {
   constructor(
-    private authRepository: AuthRepository,
-    private jwtService: JwtService,
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
   ) {}
 
   async register(data: RegisterDto): Promise<CreatedUser | null> {
     const hashedPassword = await bcrypt.hash(data.password, 10);
-    const user = await this.authRepository.createUser({
+    return await this.usersService.create({
       ...data,
       password: hashedPassword,
     });
-    return user;
   }
 
   async login(data: LoginDto): Promise<AuthPayload> {
-    const user = await this.authRepository.findUserByEmail(data.email);
+    const user = await this.usersService.findByEmail(data.email);
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -35,11 +34,14 @@ export class AuthService {
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
+
     const token = await this.jwtService.signAsync({
-      id: user.id,
+      sub: user.id,
+      email: user.email,
     });
+
     return {
-      token: token,
+      token,
       user: {
         email: user.email,
         username: user.username,
