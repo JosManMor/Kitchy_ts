@@ -26,3 +26,5 @@ export const envSchema = z.object({
     .transform((v) => v as StringValue),
   CORS_ORIGIN: z.url().optional().default('http://localhost:3000'),
 });
+
+export const env = envSchema.parse(process.env);

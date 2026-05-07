@@ -6,14 +6,16 @@ import { PrismaModule } from './prisma.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { AllExceptionsFilter } from './common/filters/all-exception.filter';
-import configuration from './config/configuration';
+import appConfig from './config/app.config';
+import authConfig from './config/auth.config';
+import databaseConfig from './config/database.config';
 import { validateEnv } from './config/validate-env';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [configuration],
+      load: [appConfig, authConfig, databaseConfig],
       validate: validateEnv,
     }),
     AuthModule,
