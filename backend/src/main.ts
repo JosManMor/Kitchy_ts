@@ -1,19 +1,23 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import env from './config/env.js';
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import type { Express } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
+
   app.use(cookieParser());
   const expressApp = app.getHttpAdapter().getInstance() as Express;
   expressApp.disable('x-powered-by');
+
   app.enableCors({
-    origin: env.CORS_ORIGIN,
+    origin: configService.getOrThrow<string>('CORS_ORIGIN'),
   });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -21,6 +25,7 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
   const config = new DocumentBuilder()
     .setTitle('Kitchy')
     .setDescription('The kitchy API description')
@@ -29,7 +34,8 @@ async function bootstrap() {
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, documentFactory);
 
-  await app.listen(env.BACKEND_PORT);
+  const port = configService.getOrThrow<number>('port');
+  await app.listen(port);
 }
 
 bootstrap();
